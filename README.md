@@ -1,5 +1,5 @@
-# Stib-Iot
-       Small device to retrieve the passing time of the STIB-MIVB public transport at given stops.
+# Stib-Mivb-Passing Time
+    Small device to retrieve the passing time of the STIB-MIVB public transport at given stops.
     These stops are hardcoded in the code as favourites. 
     The app consists in 2 screen. 
     - The selection of the line from the favourite list.
@@ -23,10 +23,10 @@
 
     TODO:
     - Regenerate token
-    - Wake up on push
-    - led indicator (loading)
-    - Get remaining time instead of expected time arrival
-    - Auto refresh every 15sec
+    - Fix memory leak when making couple of Http calls
+    v Get remaining time instead of expected time arrival
+    v Format the remaining time to be at the end of the line + use down arrow instead of 0 + align texts
+    v Auto refresh every 15sec
     - 3D print case
 
 ![Alt text](stib-iot_bb.png?raw=true "Breadboard")

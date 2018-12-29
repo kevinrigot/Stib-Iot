@@ -1,9 +1,14 @@
-#ifndef STASSID
-#define STASSID "YOUR_SSID"
-#define STAPSK  "YOUR_PASSWORD"
-#endif
+#pragma once
+#include "Favourite.h"
 
+/**WiFi config*/
+#define WIFI_SSID "YOUR_SSID"
+#define WIFI_PWD  "YOUR_PASSWORD"
+
+/**Stib-Mivb Api Token*/
 #define API_TOKEN "Bearer YOUR_BEARER_TOKEN";
+/**Refresh rate (in sec) in the passing time screen */
+#define REFRESH_RATE_SEC 15
 
 /** Stops ids. Can be found in the GTFS (stops.txt)*/
 const Favourite favourites[5] = {

@@ -1,3 +1,5 @@
+#pragma once
+
 class Favourite{
   public:
     String stopId;
