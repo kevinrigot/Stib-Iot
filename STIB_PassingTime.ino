@@ -23,7 +23,8 @@
 
     TODO:
     - Regenerate token
-    - Fix memory leak when making couple of Http calls
+    - CA cert vs fingerprint?
+    v Fix memory leak when making couple of Http calls
     v Get remaining time instead of expected time arrival
     v Format the remaining time to be at the end of the line + use down arrow instead of 0 + align texts
     v Auto refresh every 15sec
@@ -37,7 +38,7 @@
 #include "Favourite.h"
 //Configure WIFI_SSID, WIFI_PWD, API_TOKEN, REFRESH_RATE_SEC and favourites
 #include "config.h"
-
+#include <EEPROM.h>
 /** Librairies */
 #include <ESP8266WiFi.h>
 #include <Wire.h>  // This library is already built in to the Arduino IDE
@@ -60,7 +61,9 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 uint8_t down_arrow[8]  = {0x4,0x4,0x4,0x4,0xff,0xe,0x4};
 const String DOWN_ARROW = String("\1");
-void(* resetFunc) (void) = 0; //declare reset function @ address 0
+
+BearSSL::WiFiClientSecure * client = new BearSSL::WiFiClientSecure();
+HTTPClient http;
 
 void setup() {
   Serial.begin(115200);
@@ -80,9 +83,11 @@ void setup() {
   
   if(!connectToWifi()){
     Serial.println(F("Fail to connect. Wrong password? Reset micro controller."));
-    resetFunc();
+    ESP.restart();
   }
   configureTime();
+  initializeEeprom();
+  initializeToken();
 }
 
 int timezone = 1 * 3600; //GMT +1
@@ -144,7 +149,6 @@ class AppState {
     String line2;
 };
 AppState appState;
-
 void loop() {
   switch(appState.screen) {
     case FAVOURITE:
@@ -250,13 +254,21 @@ void handleScreenFavourite(){
 class PassingTimeState{
    public:
     unsigned long lastUpdate = 0;
+    bool fatalErrorOccured = false;
     int passingTimePage = 0;
-    PassingTimeResponse* passingTimeResponse;
+    PassingTimeResponse* passingTimeResponse = NULL;
+    void clearPassingTimeResponse(){
+      if(passingTimeResponse != NULL){
+        passingTimeResponse->clear();
+        delete passingTimeResponse;
+        passingTimeResponse = NULL;
+      }
+    }
 };
 PassingTimeState passingTimeState;
 void handleScreenPassingTime(){  
   unsigned long elapsedTimeSinceLastUpdate = millis() - passingTimeState.lastUpdate;
-  if(elapsedTimeSinceLastUpdate < REFRESH_RATE_SEC * 1000 ){
+  if(passingTimeState.fatalErrorOccured || elapsedTimeSinceLastUpdate < REFRESH_RATE_SEC * 1000 ){
     appState.upButtonState=digitalRead(UP_BUTTON);
     appState.selectButtonState=digitalRead(SELECT_BUTTON);
     appState.downButtonState=digitalRead(DOWN_BUTTON);
@@ -265,6 +277,7 @@ void handleScreenPassingTime(){
         appState.screen = FAVOURITE;
         appState.reloadFavourites = true;
         passingTimeState.lastUpdate = 0;
+        passingTimeState.fatalErrorOccured = false;
         Serial.println(F("Switch to Screen FAVOURITE"));
       }else if(appState.downButtonState == HIGH){
         if(passingTimeState.passingTimePage < (passingTimeState.passingTimeResponse->numberOfResponses/2 + passingTimeState.passingTimeResponse->numberOfResponses%2)){
@@ -284,26 +297,64 @@ void handleScreenPassingTime(){
       debouncePushButtons();
     }
   }else{
-    lcd.setCursor(0,0);
-    lcd.print(F("Loading..."));
-    passingTimeState.passingTimeResponse = getPassingTime(appState.stopIdToFetch);
-    if( passingTimeState.passingTimeResponse != 0 ){
-      if(DEBUG){
-        Serial.println(F("Response:"));
-        unsigned long numberOfSecSinceBeginOfDay = getNumberOfSecSinceBeginOfDay();
-        for(int k =0; k<passingTimeState.passingTimeResponse->numberOfResponses ; k++){
-          Serial.println(formatPassingTimeForLcd(passingTimeState.passingTimeResponse->passingTimes[k],numberOfSecSinceBeginOfDay) + " - " +passingTimeState.passingTimeResponse->passingTimes[k]->getRawExpectedTime());
-        }
-        Serial.println(F("---------------"));
-      }
-      passingTimeState.passingTimePage = 1;
-      displayPassingTimeOnLcd(passingTimeState.passingTimeResponse, passingTimeState.passingTimePage); 
-    }else{
-      lcd.clear();
-      lcd.print("Error");
-    }
-    passingTimeState.lastUpdate = millis();
+    retrievePassingTime();
   }
+}
+
+void retrievePassingTime(){
+  if(DEBUG){
+    Serial.print(F("Free RAM = "));
+    Serial.println(ESP.getFreeHeap(), DEC); 
+  }
+  lcd.setCursor(0,0);
+  lcd.print(F("Loading..."));      
+  passingTimeState.clearPassingTimeResponse();
+  passingTimeState.passingTimeResponse = getPassingTime(&http, client, appState.stopIdToFetch);
+  if( passingTimeState.passingTimeResponse != 0 && passingTimeState.passingTimeResponse->httpCode == 200 ){
+    if(DEBUG){
+      debugPassingTimeResponse();
+    }
+    passingTimeState.passingTimePage = 1;
+    displayPassingTimeOnLcd(passingTimeState.passingTimeResponse, passingTimeState.passingTimePage); 
+    passingTimeState.lastUpdate = millis();
+  }else if( passingTimeState.passingTimeResponse != 0 && passingTimeState.passingTimeResponse->httpCode == 401 ){
+    requestNewAccessToken();
+  }else{
+    fatalErrorInApiCall("get passing time");
+  }
+}
+
+void fatalErrorInApiCall(String message){
+  Serial.print(F("Fatal error occured in API call:"));
+  Serial.println(message);
+  lcd.clear();
+  lcd.print(F("Error"));
+  lcd.setCursor(0,1);
+  lcd.print(message);
+  passingTimeState.fatalErrorOccured = true;
+}
+
+void requestNewAccessToken(){
+  Serial.println(F("Token expired, request new token"));
+  lcd.clear();
+  lcd.print(F("Token expired"));
+  lcd.setCursor(0,1);
+  lcd.print(F("Req. new token.."));
+  String newToken = getNewToken(&http, client);
+  if(newToken != "ERROR"){
+    writeToken(newToken);  
+  }else{
+    fatalErrorInApiCall("request token");
+  }
+}
+
+void debugPassingTimeResponse(){
+  Serial.println(F("Response:"));
+  unsigned long numberOfSecSinceBeginOfDay = getNumberOfSecSinceBeginOfDay();
+  for(int k =0; k<passingTimeState.passingTimeResponse->numberOfResponses ; k++){
+    Serial.println(formatPassingTimeForLcd(passingTimeState.passingTimeResponse->passingTimes[k],numberOfSecSinceBeginOfDay) + " - " +passingTimeState.passingTimeResponse->passingTimes[k]->getRawExpectedTime());
+  }
+  Serial.println(F("---------------"));
 }
 
 void debouncePushButtons(){
@@ -335,9 +386,9 @@ unsigned long getNumberOfSecSinceBeginOfDay(){
   time_t now = time(nullptr);
   struct tm* p_tm = localtime(&now);
   while(p_tm->tm_year < 100){
-    Serial.print("Current year: ");
+    Serial.print(F("Current year: "));
     Serial.print(p_tm->tm_year);
-    Serial.println(" [ERROR] Current date is not fully initialized! Delay 200ms");
+    Serial.println(F("[ERROR] Current date is not fully initialized! Delay 200ms"));
     delay(200);
     now = time(nullptr);
     p_tm = localtime(&now);
@@ -345,9 +396,9 @@ unsigned long getNumberOfSecSinceBeginOfDay(){
   if(DEBUG){
     Serial.print(F("Current time:"));
     Serial.print(p_tm->tm_hour);
-    Serial.print(":");
+    Serial.print(F(":"));
     Serial.print(p_tm->tm_min);
-    Serial.print(":");
+    Serial.print(F(":"));
     Serial.println(p_tm->tm_sec);
   }
   return p_tm->tm_hour *3600 + p_tm->tm_min *60 + p_tm->tm_sec;
@@ -375,7 +426,7 @@ void displayPassingTimeOnLcd(PassingTimeResponse* passingTimeResponse, int page)
   if((page-1)*2 + 1 < passingTimeResponse->numberOfResponses){
     appState.line2 = formatPassingTimeForLcd(passingTimeResponse->passingTimes[(page-1)*2 + 1],numberOfSecSinceBeginOfDay);
   }else{
-    appState.line2 = "----------------";
+    appState.line2 = F("----------------");
   }
   lcd.print(appState.line1);
   lcd.setCursor(0,1);

@@ -22,8 +22,9 @@
     - Configure NodeMcu: https://www.youtube.com/watch?v=p06NNRq5NTU
 
     TODO:
-    - Regenerate token
-    - Fix memory leak when making couple of Http calls
+    v Regenerate token
+    - CA cert vs fingerprint?
+    v Fix memory leak when making couple of Http calls
     v Get remaining time instead of expected time arrival
     v Format the remaining time to be at the end of the line + use down arrow instead of 0 + align texts
     v Auto refresh every 15sec

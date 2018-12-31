@@ -55,11 +55,27 @@ class PassingTime{
 
 class PassingTimeResponse{
   public:
+    int httpCode = 0;
     int numberOfResponses = 0;
-    PassingTime **passingTimes;
+    PassingTime **passingTimes = NULL;
+
+    PassingTimeResponse(int httpCode):
+      httpCode(httpCode)
+    {      
+    }
   
     PassingTimeResponse(PassingTime **items, int arraySize){
       passingTimes = items;
       numberOfResponses = arraySize;    
+      httpCode = 200;
+    }
+
+    void clear(){
+      if(passingTimes != NULL){
+        for(int i = 0; i< numberOfResponses; i++){
+          delete passingTimes[i];
+          passingTimes[i] = NULL;
+        }
+      }
     }
 };
