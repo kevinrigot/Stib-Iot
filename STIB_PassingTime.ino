@@ -14,7 +14,7 @@
     - 3 10K Ohm resistors
 
     Librairies:
-    - ArduinoJson: https://arduinojson.org/
+    - ArduinoJson v5.13.4: https://arduinojson.org/
     - ArduinoSort: https://github.com/emilv/ArduinoSort
     - LiquidCrystal I2C: https://github.com/johnrickman/LiquidCrystal_I2C
 
@@ -22,7 +22,7 @@
     - Configure NodeMcu: https://www.youtube.com/watch?v=p06NNRq5NTU
 
     TODO:
-    - Regenerate token
+    v Regenerate token
     - CA cert vs fingerprint?
     v Fix memory leak when making couple of Http calls
     v Get remaining time instead of expected time arrival
@@ -253,7 +253,7 @@ void handleScreenFavourite(){
 
 class PassingTimeState{
    public:
-    unsigned long lastUpdate = 0;
+    unsigned long lastUpdate = NULL;
     bool fatalErrorOccured = false;
     int passingTimePage = 0;
     PassingTimeResponse* passingTimeResponse = NULL;
@@ -267,8 +267,7 @@ class PassingTimeState{
 };
 PassingTimeState passingTimeState;
 void handleScreenPassingTime(){  
-  unsigned long elapsedTimeSinceLastUpdate = millis() - passingTimeState.lastUpdate;
-  if(passingTimeState.fatalErrorOccured || elapsedTimeSinceLastUpdate < REFRESH_RATE_SEC * 1000 ){
+  if(passingTimeState.lastUpdate != NULL && (passingTimeState.fatalErrorOccured || (millis() - passingTimeState.lastUpdate) < REFRESH_RATE_SEC * 1000) ){
     appState.upButtonState=digitalRead(UP_BUTTON);
     appState.selectButtonState=digitalRead(SELECT_BUTTON);
     appState.downButtonState=digitalRead(DOWN_BUTTON);
@@ -276,7 +275,7 @@ void handleScreenPassingTime(){
       if(appState.selectButtonState == HIGH){
         appState.screen = FAVOURITE;
         appState.reloadFavourites = true;
-        passingTimeState.lastUpdate = 0;
+        passingTimeState.lastUpdate = NULL;
         passingTimeState.fatalErrorOccured = false;
         Serial.println(F("Switch to Screen FAVOURITE"));
       }else if(appState.downButtonState == HIGH){
@@ -302,12 +301,12 @@ void handleScreenPassingTime(){
 }
 
 void retrievePassingTime(){
+  lcd.setCursor(0,0);
+  lcd.print(F("Loading..."));
   if(DEBUG){
     Serial.print(F("Free RAM = "));
     Serial.println(ESP.getFreeHeap(), DEC); 
-  }
-  lcd.setCursor(0,0);
-  lcd.print(F("Loading..."));      
+  } 
   passingTimeState.clearPassingTimeResponse();
   passingTimeState.passingTimeResponse = getPassingTime(&http, client, appState.stopIdToFetch);
   if( passingTimeState.passingTimeResponse != 0 && passingTimeState.passingTimeResponse->httpCode == 200 ){
