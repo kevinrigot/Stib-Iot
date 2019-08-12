@@ -32,7 +32,8 @@ const size_t PASSING_TIME_RESPONSE_CAPACITY = JSON_ARRAY_SIZE(1) + JSON_ARRAY_SI
 
 PassingTimeResponse* getPassingTime(HTTPClient * http, BearSSL::WiFiClientSecure * client, String stopId){
   http->setReuse(true);
-  client->setFingerprint(FINGERPRINT);
+  //client->setFingerprint(FINGERPRINT);
+  client->setInsecure();
   String url = endPointPassingTime + "/" + stopId;
   Serial.print(F("[HTTPS] begin: "));
   Serial.println(url);

@@ -17,21 +17,24 @@
     - ArduinoJson v5.13.4: https://arduinojson.org/
     - ArduinoSort: https://github.com/emilv/ArduinoSort
     - LiquidCrystal I2C: https://github.com/johnrickman/LiquidCrystal_I2C
+    - Time from ESP8266
+    - SimpleDSTadjust: https://platformio.org/lib/show/1276/simpleDSTadjust
 
     Resources:
     - Configure NodeMcu: https://www.youtube.com/watch?v=p06NNRq5NTU
 
     TODO:
     v Regenerate token
-    - CA cert vs fingerprint?
+    v CA cert vs fingerprint? --> Ignore validation of fingerprint
     v Fix memory leak when making couple of Http calls
     v Get remaining time instead of expected time arrival
     v Format the remaining time to be at the end of the line + use down arrow instead of 0 + align texts
     v Auto refresh every 15sec
-    - 3D print case
+    v 3D print case
+    v Summer time issue
 */
 #define APP_NAME  "Stib IOT - " __FILE__
-#define APP_VERSION  "v0.2-" __DATE__ " " __TIME__
+#define APP_VERSION  "v0.4-" __DATE__ " " __TIME__
 #define DEBUG true
 #include "PassingTime.h"
 #include "PassingTimeService.h"
@@ -44,6 +47,8 @@
 #include <Wire.h>  // This library is already built in to the Arduino IDE
 #include <LiquidCrystal_I2C.h> //This library you can add via Include Library > Manage Library > 
 #include <time.h>
+#include <simpleDSTadjust.h>
+
 
 enum UP_DOWN{
   UP,
@@ -92,6 +97,11 @@ void setup() {
 
 int timezone = 1 * 3600; //GMT +1
 int dst = 0; //Daylight saving
+struct dstRule StartRule =  {"CEST", Last, Sun, Mar, 2, 3600};
+struct dstRule EndRule = {"CET", Last, Sun, Oct, 2, 0};
+simpleDSTadjust dstAdjusted(StartRule, EndRule);
+char *dstAbbrev;
+
 void configureTime(){
   configTime(timezone, dst, "pool.ntp.org","time.nist.gov");
   Serial.println(F("Waiting for Internet time"));
@@ -100,6 +110,12 @@ void configureTime(){
      delay(1000);
   }
   Serial.println(F("Time response....OK"));
+  // Load DST rules
+  time_t t = dstAdjusted.time(&dstAbbrev);
+  struct tm *timeinfo = localtime (&t);
+  char buf[30];
+  sprintf(buf, "%02d/%02d/%04d %02d:%02d:%02d%s %s\n", timeinfo->tm_mday, timeinfo->tm_mon+1, timeinfo->tm_year+1900, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, dstAbbrev);
+  Serial.print(buf);
 }
 
 bool connectToWifi(){
@@ -320,6 +336,7 @@ void retrievePassingTime(){
     requestNewAccessToken();
   }else{
     fatalErrorInApiCall("get passing time");
+    // Update fingerprint in config
   }
 }
 
@@ -327,9 +344,10 @@ void fatalErrorInApiCall(String message){
   Serial.print(F("Fatal error occured in API call:"));
   Serial.println(message);
   lcd.clear();
-  lcd.print(F("Error"));
+  lcd.print(F("Er:Cert expired?"));
   lcd.setCursor(0,1);
   lcd.print(message);
+  delay(2000);
   passingTimeState.fatalErrorOccured = true;
 }
 
@@ -382,7 +400,7 @@ void endOfRecord(UP_DOWN direction, int leftPosition){
 }
 
 unsigned long getNumberOfSecSinceBeginOfDay(){
-  time_t now = time(nullptr);
+  time_t now = dstAdjusted.time(&dstAbbrev);
   struct tm* p_tm = localtime(&now);
   while(p_tm->tm_year < 100){
     Serial.print(F("Current year: "));
