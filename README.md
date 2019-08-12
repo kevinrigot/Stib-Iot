@@ -34,3 +34,9 @@
     v Summer time issue
 
 ![Alt text](stib-iot_bb.png?raw=true "Breadboard")
+
+![Alt text](photos/model1.jpg?raw=true "Model")
+![Alt text](photos/model2.jpg?raw=true "Model")
+![Alt text](photos/model3.jpg?raw=true "Model")
+![Alt text](photos/PCB.jpeg?raw=true "PCB")
+![Alt text](photos/PCB_in_model.jpeg?raw=true "PCB in Model")
