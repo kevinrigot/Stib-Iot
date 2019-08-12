@@ -17,17 +17,20 @@
     - ArduinoJson: https://arduinojson.org/
     - ArduinoSort: https://github.com/emilv/ArduinoSort
     - LiquidCrystal I2C: https://github.com/johnrickman/LiquidCrystal_I2C
+    - Time from ESP8266
+    - SimpleDSTadjust: https://platformio.org/lib/show/1276/simpleDSTadjust
 
     Resources:
     - Configure NodeMcu: https://www.youtube.com/watch?v=p06NNRq5NTU
 
     TODO:
     v Regenerate token
-    - CA cert vs fingerprint?
+    v CA cert vs fingerprint? --> Ignore validation of fingerprint
     v Fix memory leak when making couple of Http calls
     v Get remaining time instead of expected time arrival
     v Format the remaining time to be at the end of the line + use down arrow instead of 0 + align texts
     v Auto refresh every 15sec
-    - 3D print case
+    v 3D print case
+    v Summer time issue
 
 ![Alt text](stib-iot_bb.png?raw=true "Breadboard")
