@@ -1,18 +1,29 @@
 #pragma once
+#include <Arduino.h>
 #include "Favourite.h"
 
 /**WiFi config*/
-#define WIFI_SSID "YOUR_SSID"
-#define WIFI_PWD  "YOUR_PASSWORD"
+#ifndef WIFI_SSID
+#define WIFI_SSID "(WIFI_SSID not defined)"
+#endif
+#ifndef WIFI_PWD
+#define WIFI_PWD "(WIFI_PASSWORD not defined)"
+#endif
+#ifndef ENV_API_BASIC_AUTH
+#define ENV_API_BASIC_AUTH "API Basic auth not defined"
+#endif
+#ifndef ENV_DEFAULT_API_TOKEN
+#define ENV_DEFAULT_API_TOKEN "API Token not defined"
+#endif
 
 /**Refresh rate (in sec) in the passing time screen */
 #define REFRESH_RATE_SEC 15
 /** STIB-MIVB endpoint configuration */
 const String HOST = "https://opendata-api.stib-mivb.be";
 /**Stib-Mivb Api Token*/
-const String DEFAULT_API_TOKEN "Bearer YOUR_BEARER_TOKEN";
+const String DEFAULT_API_TOKEN = ENV_DEFAULT_API_TOKEN;
 /*Convert << yourConsumerKey:yourConsumerSecret >> in Base64 */
-const String API_BASIC_AUTH = "<< yourConsumerKey:yourConsumerSecret >>";
+const String API_BASIC_AUTH = ENV_API_BASIC_AUTH;
 // DEPRECATED. client->setInsecure(); solve this issue
 // Use web browser to view and copy
 // SHA1 fingerprint of the certificate

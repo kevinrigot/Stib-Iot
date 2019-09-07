@@ -1,4 +1,7 @@
 #pragma once
+
+#include <Arduino.h>
+
 #include "config.h"
 #include <EEPROM.h>
 //Librairies

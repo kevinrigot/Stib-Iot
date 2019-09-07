@@ -1,4 +1,5 @@
 #pragma once
+#include <Arduino.h>
 #include "config.h"
 #include "PassingTime.h"
 #include "TokenService.h"

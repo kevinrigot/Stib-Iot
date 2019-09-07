@@ -32,6 +32,9 @@
     v Auto refresh every 15sec
     v 3D print case
     v Summer time issue
+    - voltage low warning
+    v convert project to platform io
+
 
 ![Alt text](stib-iot_bb.png?raw=true "Breadboard")
 

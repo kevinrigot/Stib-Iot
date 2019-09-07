@@ -1,3 +1,4 @@
+#include <Arduino.h>
 /*
     Small device to retrieve the passing time of the STIB-MIVB public transport at given stops.
     These stops are hardcoded in the code as favourites. 
@@ -36,11 +37,11 @@
 #define APP_NAME  "Stib IOT - " __FILE__
 #define APP_VERSION  "v0.4-" __DATE__ " " __TIME__
 #define DEBUG true
-#include "PassingTime.h"
-#include "PassingTimeService.h"
-#include "Favourite.h"
+#include <PassingTime.h>
+#include <PassingTimeService.h>
+#include <Favourite.h>
 //Configure WIFI_SSID, WIFI_PWD, API_TOKEN, REFRESH_RATE_SEC and favourites
-#include "config.h"
+#include <config.h>
 #include <EEPROM.h>
 /** Librairies */
 #include <ESP8266WiFi.h>
@@ -70,30 +71,16 @@ const String DOWN_ARROW = String("\1");
 BearSSL::WiFiClientSecure * client = new BearSSL::WiFiClientSecure();
 HTTPClient http;
 
-void setup() {
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println(APP_NAME);
-  Serial.println(APP_VERSION);
-  if(DEBUG)Serial.println(F("Debug mode"));
-  
-  
-  pinMode(UP_BUTTON, INPUT);
-  pinMode(SELECT_BUTTON, INPUT); 
-  pinMode(DOWN_BUTTON, INPUT); 
-  
-  lcd.init();   // initializing the LCD
-  lcd.backlight(); // Enable or Turn On the backlight 
-  lcd.createChar(1, down_arrow);
-  
-  if(!connectToWifi()){
-    Serial.println(F("Fail to connect. Wrong password? Reset micro controller."));
-    ESP.restart();
-  }
-  configureTime();
-  initializeEeprom();
-  initializeToken();
-}
+/** Method signatures */
+void displayPassingTimeOnLcd(PassingTimeResponse* passingTimeResponse, int page);
+void retrievePassingTime();
+void debugPassingTimeResponse();
+void debouncePushButtons();
+void requestNewAccessToken();
+void fatalErrorInApiCall(String message);
+String formatPassingTimeForLcd(PassingTime *passingTime, unsigned long secSinceBeginOfDay);
+unsigned long getNumberOfSecSinceBeginOfDay();
+void endOfRecord(UP_DOWN direction, int leftPosition);
 
 int timezone = 1 * 3600; //GMT +1
 int dst = 0; //Daylight saving
@@ -114,7 +101,7 @@ void configureTime(){
   time_t t = dstAdjusted.time(&dstAbbrev);
   struct tm *timeinfo = localtime (&t);
   char buf[30];
-  sprintf(buf, "%02d/%02d/%04d %02d:%02d:%02d%s %s\n", timeinfo->tm_mday, timeinfo->tm_mon+1, timeinfo->tm_year+1900, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, dstAbbrev);
+  sprintf(buf, "%02d/%02d/%04d %02d:%02d:%02d %s\n", timeinfo->tm_mday, timeinfo->tm_mon+1, timeinfo->tm_year+1900, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec, dstAbbrev);
   Serial.print(buf);
 }
 
@@ -158,25 +145,13 @@ class AppState {
     int downButtonState = 0;
     ScreenType screen = FAVOURITE;
     String stopIdToFetch;
-    int position = 0;
-    int previousPosition = 0;
+    unsigned int position = 0;
+    unsigned int previousPosition = 0;
     bool reloadFavourites = true;
     String line1;
     String line2;
 };
 AppState appState;
-void loop() {
-  switch(appState.screen) {
-    case FAVOURITE:
-      handleScreenFavourite();
-      break;
-    case PASSING_TIME:
-      handleScreenPassingTime();
-      break;
-    default:
-      appState.screen = FAVOURITE;
-  }
-}
 
 void handleScreenFavourite(){
   appState.upButtonState=digitalRead(UP_BUTTON);
@@ -269,7 +244,7 @@ void handleScreenFavourite(){
 
 class PassingTimeState{
    public:
-    unsigned long lastUpdate = NULL;
+    unsigned long lastUpdate = 0;
     bool fatalErrorOccured = false;
     int passingTimePage = 0;
     PassingTimeResponse* passingTimeResponse = NULL;
@@ -283,7 +258,7 @@ class PassingTimeState{
 };
 PassingTimeState passingTimeState;
 void handleScreenPassingTime(){  
-  if(passingTimeState.lastUpdate != NULL && (passingTimeState.fatalErrorOccured || (millis() - passingTimeState.lastUpdate) < REFRESH_RATE_SEC * 1000) ){
+  if(passingTimeState.lastUpdate != 0 && (passingTimeState.fatalErrorOccured || (millis() - passingTimeState.lastUpdate) < REFRESH_RATE_SEC * 1000) ){
     appState.upButtonState=digitalRead(UP_BUTTON);
     appState.selectButtonState=digitalRead(SELECT_BUTTON);
     appState.downButtonState=digitalRead(DOWN_BUTTON);
@@ -291,7 +266,7 @@ void handleScreenPassingTime(){
       if(appState.selectButtonState == HIGH){
         appState.screen = FAVOURITE;
         appState.reloadFavourites = true;
-        passingTimeState.lastUpdate = NULL;
+        passingTimeState.lastUpdate = 0;
         passingTimeState.fatalErrorOccured = false;
         Serial.println(F("Switch to Screen FAVOURITE"));
       }else if(appState.downButtonState == HIGH){
@@ -448,4 +423,41 @@ void displayPassingTimeOnLcd(PassingTimeResponse* passingTimeResponse, int page)
   lcd.print(appState.line1);
   lcd.setCursor(0,1);
   lcd.print(appState.line2);
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println();
+  Serial.println(APP_NAME);
+  Serial.println(APP_VERSION);
+  if(DEBUG)Serial.println(F("Debug mode"));
+  
+  pinMode(UP_BUTTON, INPUT);
+  pinMode(SELECT_BUTTON, INPUT); 
+  pinMode(DOWN_BUTTON, INPUT); 
+  
+  lcd.init();   // initializing the LCD
+  lcd.backlight(); // Enable or Turn On the backlight 
+  lcd.createChar(1, down_arrow);
+  
+  if(!connectToWifi()){
+    Serial.println(F("Fail to connect. Wrong password? Reset micro controller."));
+    ESP.restart();
+  }
+  configureTime();
+  initializeEeprom();
+  initializeToken();
+}
+
+void loop() {
+  switch(appState.screen) {
+    case FAVOURITE:
+      handleScreenFavourite();
+      break;
+    case PASSING_TIME:
+      handleScreenPassingTime();
+      break;
+    default:
+      appState.screen = FAVOURITE;
+  }
 }
