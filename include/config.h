@@ -6,8 +6,8 @@
 #ifndef WIFI_SSID
 #define WIFI_SSID "(WIFI_SSID not defined)"
 #endif
-#ifndef WIFI_PWD
-#define WIFI_PWD "(WIFI_PASSWORD not defined)"
+#ifndef WIFI_PASSWORD
+#define WIFI_PASSWORD "(WIFI_PASSWORD not defined)"
 #endif
 #ifndef ENV_API_BASIC_AUTH
 #define ENV_API_BASIC_AUTH "API Basic auth not defined"

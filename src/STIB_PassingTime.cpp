@@ -35,7 +35,7 @@
     v Summer time issue
 */
 #define APP_NAME  "Stib IOT - " __FILE__
-#define APP_VERSION  "v0.4-" __DATE__ " " __TIME__
+#define APP_VERSION  "v0.5-" __DATE__ " " __TIME__
 #define DEBUG true
 #include <PassingTime.h>
 #include <PassingTimeService.h>
@@ -111,10 +111,10 @@ bool connectToWifi(){
   lcd.setCursor(0, 0);
   lcd.print(F("Connecting WiFi "));
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PWD);
   lcd.setCursor(0,1);
   int count = 0;
   while (WiFi.status() != WL_CONNECTED) {
+    if(count == 0) WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     delay(500);
     lcd.print(".");
     Serial.print(".");
@@ -407,7 +407,7 @@ String formatPassingTimeForLcd(PassingTime *passingTime, unsigned long secSinceB
     remainingTimeStr = "--";
   }
   
-  return (passingTime->getLine() + "  ").substring(0,3) + (passingTime->getDestination() + "     ").substring(0, 10) + " " + remainingTimeStr;
+  return (passingTime->getLine() + "  ").substring(0,3) + (passingTime->getDestination() + "       ").substring(0, 10) + " " + remainingTimeStr;
 }
 
 
